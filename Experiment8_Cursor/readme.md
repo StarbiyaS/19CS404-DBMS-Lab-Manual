@@ -75,9 +75,66 @@ END;
 - Insert some sample data into the table.
 - Use a simple cursor to fetch and display employee names and designations.
 - Implement exception handling to catch the relevant exceptions and display appropriate messages.
+## PROGRAM:
+```
 
+CREATE TABLE employees (
+    emp_id NUMBER(5),
+    emp_name VARCHAR2(50),
+    designation VARCHAR2(50)
+);
+
+
+INSERT INTO employees VALUES (101, 'John Doe', 'Manager');
+INSERT INTO employees VALUES (102, 'Alice Smith', 'Developer');
+INSERT INTO employees VALUES (103, 'Robert Brown', 'Analyst');
+COMMIT;
+
+
+SET SERVEROUTPUT ON;
+
+DECLARE
+    
+    CURSOR emp_cursor IS
+        SELECT emp_name, designation FROM employees;
+
+    
+    v_name employees.emp_name%TYPE;
+    v_designation employees.designation%TYPE;
+
+    
+    no_data EXCEPTION;
+
+BEGIN
+    
+    OPEN emp_cursor;
+    FETCH emp_cursor INTO v_name, v_designation;
+
+    
+    IF emp_cursor%NOTFOUND THEN
+        RAISE no_data;
+    END IF;
+
+    
+    WHILE emp_cursor%FOUND LOOP
+        DBMS_OUTPUT.PUT_LINE('Employee Name: ' || v_name || ' | Designation: ' || v_designation);
+        FETCH emp_cursor INTO v_name, v_designation;
+    END LOOP;
+
+    
+    CLOSE emp_cursor;
+
+EXCEPTION
+    WHEN no_data THEN
+        DBMS_OUTPUT.PUT_LINE('No data found in the employees table.');
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('An unexpected error occurred: ' || SQLERRM);
+END;
+/
+```
 **Output:**  
 The program should display the employee details or an error message.
+<img width="1018" height="692" alt="image" src="https://github.com/user-attachments/assets/63ebbdfe-34f1-4563-b4d6-26344ea95441" />
 
 ---
 
@@ -94,9 +151,90 @@ The program should display the employee details or an error message.
 - Insert sample salary values for the employees.
 - Use a parameterized cursor to accept a salary range as input and fetch employees within that range.
 - Implement exception handling to catch and display relevant error messages.
+## Step 1: Create the employees table
+```
+CREATE TABLE employees (
+    emp_id NUMBER(5) PRIMARY KEY,
+    emp_name VARCHAR2(50),
+    designation VARCHAR2(50)
+);
+```
+## Step 2: Insert sample employee data
+```
+INSERT INTO employees VALUES (101, 'John Doe', 'Manager');
+INSERT INTO employees VALUES (102, 'Alice Smith', 'Developer');
+INSERT INTO employees VALUES (103, 'Robert Brown', 'Analyst');
+COMMIT;
+```
+## Step 3: Add the salary column
+```
+ALTER TABLE employees
+ADD salary NUMBER(10,2);
+```
+## Step 4: Update the salary for each employee
+```
+UPDATE employees SET salary = 75000 WHERE emp_id = 101;
+UPDATE employees SET salary = 50000 WHERE emp_id = 102;
+UPDATE employees SET salary = 60000 WHERE emp_id = 103;
+COMMIT;
+```
+## Step 5: Verify the table data
+```
+SELECT * FROM employees;
+```
+## Step 6: PL/SQL block with a parameterized cursor
+```
+SET SERVEROUTPUT ON;
 
+DECLARE
+    -- Salary range input
+    v_min_salary NUMBER := 55000;
+    v_max_salary NUMBER := 80000;
+
+    -- Parameterized cursor
+    CURSOR emp_cursor(p_min_salary NUMBER, p_max_salary NUMBER) IS
+        SELECT emp_name, designation, salary
+        FROM employees
+        WHERE salary BETWEEN p_min_salary AND p_max_salary;
+
+    -- Variables to hold fetched data
+    v_name employees.emp_name%TYPE;
+    v_designation employees.designation%TYPE;
+    v_salary employees.salary%TYPE;
+
+BEGIN
+    -- Open cursor with parameters
+    OPEN emp_cursor(v_min_salary, v_max_salary);
+    FETCH emp_cursor INTO v_name, v_designation, v_salary;
+
+    -- Check if no rows were fetched
+    IF emp_cursor%NOTFOUND THEN
+        RAISE NO_DATA_FOUND;
+    END IF;
+
+    -- Loop through all fetched rows
+    WHILE emp_cursor%FOUND LOOP
+        DBMS_OUTPUT.PUT_LINE('Employee Name: ' || v_name ||
+                             ' | Designation: ' || v_designation ||
+                             ' | Salary: ' || v_salary);
+        FETCH emp_cursor INTO v_name, v_designation, v_salary;
+    END LOOP;
+
+    -- Close cursor
+    CLOSE emp_cursor;
+
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        DBMS_OUTPUT.PUT_LINE('No employees found within the salary range ' ||
+                             v_min_salary || ' - ' || v_max_salary);
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('An unexpected error occurred: ' || SQLERRM);
+END;
+/
+```
 **Output:**  
 The program should display the employee details within the specified salary range or an error message if no data is found.
+<img width="1020" height="697" alt="image" src="https://github.com/user-attachments/assets/1562c206-2243-4211-8dcf-8bc629b566aa" />
 
 ---
 
@@ -113,10 +251,29 @@ The program should display the employee details within the specified salary rang
 - Insert sample department numbers for employees.
 - Use a cursor FOR loop to fetch and display employee names along with their department numbers.
 - Implement exception handling to catch the relevant exceptions.
-
+## Program
+```
+DECLARE
+   found BOOLEAN := FALSE;
+BEGIN
+   FOR emp_rec IN (SELECT emp_name, dept_no FROM employees) LOOP
+      DBMS_OUTPUT.PUT_LINE('Name: ' || emp_rec.emp_name || ', Dept No: ' || emp_rec.dept_no);
+      found := TRUE;
+   END LOOP;
+   IF NOT found THEN
+      RAISE NO_DATA_FOUND;
+   END IF;
+EXCEPTION
+   WHEN NO_DATA_FOUND THEN
+      DBMS_OUTPUT.PUT_LINE('No employees found.');
+   WHEN OTHERS THEN
+      DBMS_OUTPUT.PUT_LINE('Unexpected error: ' || SQLERRM);
+END;
+```
 **Output:**  
 The program should display employee names with their department numbers or the appropriate error message if no data is found.
 
+![image](https://github.com/user-attachments/assets/a208f8c1-0913-482c-a283-b586626e5140)
 ---
 
 ### **Question 4: Cursor with `%ROWTYPE` and Exception Handling**
@@ -133,8 +290,37 @@ The program should display employee names with their department numbers or the a
 - Declare a cursor using `%ROWTYPE` to fetch complete rows from the `employees` table.
 - Implement exception handling to catch the relevant exceptions and display appropriate messages.
 
+#### Program:
+```
+DECLARE
+   CURSOR emp_cur IS SELECT * FROM employees;
+   emp_rec employees%ROWTYPE;
+   found BOOLEAN := FALSE;
+BEGIN
+   OPEN emp_cur;
+   LOOP
+      FETCH emp_cur INTO emp_rec;
+      EXIT WHEN emp_cur%NOTFOUND;
+      DBMS_OUTPUT.PUT_LINE('ID: ' || emp_rec.emp_id || ', Name: ' || emp_rec.emp_name ||
+                           ', Designation: ' || emp_rec.designation || ', Salary: ' || emp_rec.salary);
+      found := TRUE;
+   END LOOP;
+   CLOSE emp_cur;
+   IF NOT found THEN
+      RAISE NO_DATA_FOUND;
+   END IF;
+EXCEPTION
+   WHEN NO_DATA_FOUND THEN
+      DBMS_OUTPUT.PUT_LINE('No employee data found.');
+   WHEN OTHERS THEN
+      DBMS_OUTPUT.PUT_LINE('Error: ' || SQLERRM);
+END;
+```
+
 **Output:**  
 The program should display employee records or the appropriate error message if no data is found.
+
+![image](https://github.com/user-attachments/assets/65664ead-e13d-4ad4-a9df-4e2bae9c8012)
 
 ---
 
@@ -152,8 +338,35 @@ The program should display employee records or the appropriate error message if 
 - Use a cursor with the `FOR UPDATE` clause to lock the rows of employees in a specific department and update their salary.
 - Implement exception handling to handle `NO_DATA_FOUND` or other errors that may occur.
 
+#### Program:
+```
+DECLARE
+   CURSOR emp_cur IS
+      SELECT emp_id, salary FROM employees WHERE dept_no = 10 FOR UPDATE;
+   v_found BOOLEAN := FALSE;
+BEGIN
+   FOR emp_rec IN emp_cur LOOP
+      UPDATE employees SET salary = emp_rec.salary + 1000 WHERE emp_id = emp_rec.emp_id;
+      DBMS_OUTPUT.PUT_LINE('Updated salary for emp_id: ' || emp_rec.emp_id);
+      v_found := TRUE;
+   END LOOP;
+   IF NOT v_found THEN
+      RAISE NO_DATA_FOUND;
+   END IF;
+   COMMIT;
+EXCEPTION
+   WHEN NO_DATA_FOUND THEN
+      DBMS_OUTPUT.PUT_LINE('No employees found in department 10.');
+   WHEN OTHERS THEN
+      DBMS_OUTPUT.PUT_LINE('Error during update: ' || SQLERRM);
+END;
+```
+
 **Output:**  
 The program should update employee salaries and display a message, or it should display an error message if no data is found.
+
+![image](https://github.com/user-attachments/assets/a3e41b43-317a-4ff1-ae8b-85f80a7ff8ad)
+
 
 ---
 
